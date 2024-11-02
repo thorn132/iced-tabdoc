@@ -4,3 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+iced = { git = "https://github.com/iced-rs/iced.git", rev = "50340b4", features = [
+    "image",
+    "lazy",
+    "advanced",
+    "debug",
+] }
+indexmap = "2.6.0"
+image = "0.25.4"
+rfd = "0.15.0"
+serde = { version = "1.0.214", features = ["derive"] }
+serde_json = "1.0.132"
