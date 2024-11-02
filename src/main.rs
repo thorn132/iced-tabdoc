@@ -1,7 +1,14 @@
 use config::Config;
 use iced::{
-    advanced::graphics::futures::event, application, widget::toggler, window, Element, Event,
-    Subscription, Task,
+    advanced::graphics::futures::event,
+    application,
+    border::rounded,
+    widget::{
+        self, column,
+        container::{self},
+        row, text, toggler,
+    },
+    window, Alignment, Element, Event, Length, Subscription, Task, Theme,
 };
 
 mod config;
@@ -51,8 +58,26 @@ impl App {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        toggler(self.config.show_home_on_startup)
-            .on_toggle(Message::ChangeShowHomeOnStartup)
-            .into()
+        widget::container(
+            widget::container(
+                column![
+                    text("Welcome to TabDoc").size(40),
+                    row![
+                        "Show Home on Startup",
+                        toggler(self.config.show_home_on_startup)
+                            .on_toggle(Message::ChangeShowHomeOnStartup)
+                    ]
+                    .align_y(Alignment::Center)
+                    .spacing(10),
+                ]
+                .padding(50),
+            )
+            .style(|t: &Theme| container::dark(t).border(rounded(20))),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(Alignment::Center)
+        .align_y(Alignment::Center)
+        .into()
     }
 }
