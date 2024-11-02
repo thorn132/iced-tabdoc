@@ -1,17 +1,10 @@
 use config::Config;
 use iced::{
-    advanced::graphics::futures::event,
-    application,
-    border::rounded,
-    widget::{
-        self, column,
-        container::{self},
-        row, text, toggler,
-    },
-    window, Alignment, Element, Event, Length, Subscription, Task, Theme,
+    advanced::graphics::futures::event, application, window, Element, Event, Subscription, Task,
 };
 
 mod config;
+mod tabs;
 
 fn main() -> iced::Result {
     application("TabDoc", App::update, App::view)
@@ -26,7 +19,7 @@ struct App {
 
 #[derive(Debug, Clone)]
 enum Message {
-    ChangeShowHomeOnStartup(bool),
+    Home(tabs::home::Message),
     Quit,
 }
 
@@ -48,7 +41,7 @@ impl App {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::ChangeShowHomeOnStartup(b) => self.config.show_home_on_startup = b,
+            Message::Home(msg) => tabs::home::update(&mut self.config, msg),
             Message::Quit => {
                 self.config.save();
                 return window::get_latest().and_then(window::close);
@@ -58,26 +51,6 @@ impl App {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        widget::container(
-            widget::container(
-                column![
-                    text("Welcome to TabDoc").size(40),
-                    row![
-                        "Show Home on Startup",
-                        toggler(self.config.show_home_on_startup)
-                            .on_toggle(Message::ChangeShowHomeOnStartup)
-                    ]
-                    .align_y(Alignment::Center)
-                    .spacing(10),
-                ]
-                .padding(50),
-            )
-            .style(|t: &Theme| container::dark(t).border(rounded(20))),
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(Alignment::Center)
-        .align_y(Alignment::Center)
-        .into()
+        tabs::home::view(&self.config).map(Message::Home)
     }
 }
