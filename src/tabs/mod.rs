@@ -38,11 +38,26 @@ pub struct Tabs {
 }
 
 impl Tabs {
-    pub fn new() -> Self {
-        Self {
-            tabs: vec![new_home_tab(), new_create_tab()],
-            current: 1,
+    pub fn new(tabs: Vec<Tab>) -> Self {
+        Self { tabs, current: 0 }
+    }
+
+    pub fn switch_to(&mut self, key: usize) {
+        self.current = key;
+    }
+
+    pub fn switch_to_first(&mut self, predicate: impl Fn(&Tab) -> bool) -> bool {
+        if let Some(key) = self.tabs.iter().position(predicate) {
+            self.switch_to(key);
+            true
+        } else {
+            false
         }
+    }
+
+    pub fn push(&mut self, tab: Tab) {
+        self.tabs.push(tab);
+        self.switch_to(self.tabs.len() - 1);
     }
 
     pub fn update(&mut self, config: &mut Config, message: Message) {
@@ -57,7 +72,7 @@ impl Tabs {
                     tab.update(msg);
                 }
             }
-            Message::SwitchTo(key) => self.current = key,
+            Message::SwitchTo(key) => self.switch_to(key),
         }
     }
 
@@ -82,9 +97,13 @@ impl Tabs {
     pub fn view<'a>(&'a self, config: &'a Config) -> Element<'a, Message> {
         let tab_bar = self.tab_bar();
 
-        let current_tab = match self.tabs.get(self.current).unwrap() {
-            Tab::Home => home::view(config).map(|msg| Message::Home(self.current, msg)),
-            Tab::Create(tab) => tab.view().map(|msg| Message::Create(self.current, msg)),
+        let current_tab = if let Some(tab) = self.tabs.get(self.current) {
+            match tab {
+                Tab::Home => home::view(config).map(|msg| Message::Home(self.current, msg)),
+                Tab::Create(tab) => tab.view().map(|msg| Message::Create(self.current, msg)),
+            }
+        } else {
+            "No Open Tabs".into()
         };
 
         let content = widget::container(current_tab)
