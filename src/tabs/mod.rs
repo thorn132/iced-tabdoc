@@ -1,3 +1,5 @@
+use std::mem;
+
 use iced::{
     widget::{
         self, button, column, row,
@@ -58,6 +60,11 @@ impl Tabs {
     pub fn push(&mut self, tab: Tab) {
         self.tabs.push(tab);
         self.switch_to(self.tabs.len() - 1);
+    }
+
+    pub fn clear(&mut self) -> Vec<Tab> {
+        self.switch_to(0);
+        mem::replace(&mut self.tabs, vec![])
     }
 
     pub fn update(&mut self, config: &mut Config, message: Message) {
