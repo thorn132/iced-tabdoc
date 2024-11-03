@@ -15,7 +15,7 @@ fn main() -> iced::Result {
 
 struct App {
     config: Config,
-    tab: tabs::Tab,
+    tabs: tabs::Tabs,
 }
 
 #[derive(Debug, Clone)]
@@ -27,13 +27,9 @@ enum Message {
 impl App {
     fn new() -> (Self, Task<Message>) {
         let config = Config::load();
-        (
-            App {
-                config,
-                tab: tabs::new_create_tab(),
-            },
-            Task::none(),
-        )
+        let tabs = tabs::Tabs::new();
+
+        (App { config, tabs }, Task::none())
     }
 
     fn subscription(&self) -> Subscription<Message> {
@@ -48,7 +44,7 @@ impl App {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::Tab(msg) => tabs::update(&mut self.tab, &mut self.config, msg),
+            Message::Tab(msg) => self.tabs.update(&mut self.config, msg),
             Message::Quit => {
                 self.config.save();
                 return window::get_latest().and_then(window::close);
@@ -58,6 +54,6 @@ impl App {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        tabs::view(&self.tab, &self.config).map(Message::Tab)
+        self.tabs.view(&self.config).map(Message::Tab)
     }
 }
