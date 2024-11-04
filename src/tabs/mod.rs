@@ -32,6 +32,7 @@ pub enum Message {
     Home(usize, home::Message),
     Create(usize, create::Message),
     SwitchTo(usize),
+    Close(usize),
 }
 
 pub struct Tabs {
@@ -62,6 +63,11 @@ impl Tabs {
         self.switch_to(self.tabs.len() - 1);
     }
 
+    pub fn close(&mut self, key: usize) -> Tab {
+        self.current = self.current.saturating_sub(1);
+        self.tabs.remove(key)
+    }
+
     pub fn clear(&mut self) -> Vec<Tab> {
         self.switch_to(0);
         mem::replace(&mut self.tabs, vec![])
@@ -80,19 +86,31 @@ impl Tabs {
                 }
             }
             Message::SwitchTo(key) => self.switch_to(key),
+            Message::Close(key) => {
+                self.close(key);
+            }
         }
     }
 
     fn tab_bar(&self) -> Element<'_, Message> {
         widget::scrollable(row(self.tabs.iter().enumerate().map(|(key, tab)| {
-            button(tab.label())
-                .style(if key == self.current {
-                    button::primary
-                } else {
-                    button::secondary
-                })
-                .on_press_with(move || Message::SwitchTo(key))
-                .into()
+            button(
+                row![
+                    tab.label(),
+                    button("X")
+                        .style(button::text)
+                        .on_press_with(move || Message::Close(key))
+                ]
+                .align_y(Alignment::Center)
+                .spacing(4),
+            )
+            .style(if key == self.current {
+                button::primary
+            } else {
+                button::secondary
+            })
+            .on_press_with(move || Message::SwitchTo(key))
+            .into()
         })))
         .width(Length::Fill)
         .direction(Direction::Horizontal(
