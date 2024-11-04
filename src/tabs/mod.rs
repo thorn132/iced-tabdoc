@@ -1,4 +1,4 @@
-use std::mem;
+use std::{collections::BTreeMap, mem};
 
 use iced::{
     widget::{
@@ -36,21 +36,40 @@ pub enum Message {
 }
 
 pub struct Tabs {
-    tabs: Vec<Tab>,
-    current: usize,
+    tabs: BTreeMap<usize, Tab>,
+    next_id: usize,
+    history: Vec<usize>,
+    current: Option<usize>,
 }
 
 impl Tabs {
     pub fn new(tabs: Vec<Tab>) -> Self {
-        Self { tabs, current: 0 }
+        let mut result = Self {
+            tabs: BTreeMap::new(),
+            next_id: 0,
+            history: Vec::new(),
+            current: None,
+        };
+
+        for tab in tabs {
+            result.push(tab);
+        }
+
+        result
     }
 
     pub fn switch_to(&mut self, key: usize) {
-        self.current = key;
+        self.current.replace(key);
+        self.history.push(key);
     }
 
     pub fn switch_to_first(&mut self, predicate: impl Fn(&Tab) -> bool) -> bool {
-        if let Some(key) = self.tabs.iter().position(predicate) {
+        if let Some(&key) = self
+            .tabs
+            .iter()
+            .find(|(_, tab)| predicate(tab))
+            .map(|(key, _)| key)
+        {
             self.switch_to(key);
             true
         } else {
@@ -58,30 +77,53 @@ impl Tabs {
         }
     }
 
-    pub fn push(&mut self, tab: Tab) {
-        self.tabs.push(tab);
-        self.switch_to(self.tabs.len() - 1);
+    pub fn is_current(&self, key: usize) -> bool {
+        self.current.is_some_and(|k| k == key)
     }
 
-    pub fn close(&mut self, key: usize) -> Tab {
-        self.current = self.current.saturating_sub(1);
-        self.tabs.remove(key)
+    pub fn current(&self) -> Option<(usize, &Tab)> {
+        self.current
+            .and_then(|key| self.tabs.get(&key).map(|tab| (key, tab)))
+    }
+
+    pub fn push(&mut self, tab: Tab) {
+        self.tabs.insert(self.next_id, tab);
+        self.switch_to(self.next_id);
+        self.next_id += 1;
+    }
+
+    pub fn close(&mut self, key: usize) -> Option<Tab> {
+        if self.tabs.contains_key(&key) {
+            self.history.retain(|&k| k != key);
+            self.history.dedup();
+            if self.is_current(key) {
+                if let Some(next_key) = self.history.pop() {
+                    self.switch_to(next_key);
+                } else {
+                    self.current.take();
+                }
+            }
+            self.tabs.remove(&key)
+        } else {
+            None
+        }
     }
 
     pub fn clear(&mut self) -> Vec<Tab> {
         self.switch_to(0);
-        mem::replace(&mut self.tabs, vec![])
+        let old_tabs = mem::replace(&mut self.tabs, BTreeMap::new());
+        old_tabs.into_values().collect()
     }
 
     pub fn update(&mut self, config: &mut Config, message: Message) {
         match message {
             Message::Home(key, msg) => {
-                if let Some(Tab::Home) = self.tabs.get(key) {
+                if let Some(Tab::Home) = self.tabs.get(&key) {
                     home::update(config, msg);
                 }
             }
             Message::Create(key, msg) => {
-                if let Some(Tab::Create(tab)) = self.tabs.get_mut(key) {
+                if let Some(Tab::Create(tab)) = self.tabs.get_mut(&key) {
                     tab.update(msg);
                 }
             }
@@ -93,7 +135,7 @@ impl Tabs {
     }
 
     fn tab_bar(&self) -> Element<'_, Message> {
-        widget::scrollable(row(self.tabs.iter().enumerate().map(|(key, tab)| {
+        widget::scrollable(row(self.tabs.iter().map(|(&key, tab)| {
             button(
                 row![
                     tab.label(),
@@ -104,7 +146,7 @@ impl Tabs {
                 .align_y(Alignment::Center)
                 .spacing(4),
             )
-            .style(if key == self.current {
+            .style(if self.is_current(key) {
                 button::primary
             } else {
                 button::secondary
@@ -122,10 +164,10 @@ impl Tabs {
     pub fn view<'a>(&'a self, config: &'a Config) -> Element<'a, Message> {
         let tab_bar = self.tab_bar();
 
-        let current_tab = if let Some(tab) = self.tabs.get(self.current) {
+        let current_tab = if let Some((key, tab)) = self.current() {
             match tab {
-                Tab::Home => home::view(config).map(|msg| Message::Home(self.current, msg)),
-                Tab::Create(tab) => tab.view().map(|msg| Message::Create(self.current, msg)),
+                Tab::Home => home::view(config).map(move |msg| Message::Home(key, msg)),
+                Tab::Create(tab) => tab.view().map(move |msg| Message::Create(key, msg)),
             }
         } else {
             "No Open Tabs".into()
