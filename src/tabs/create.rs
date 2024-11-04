@@ -3,8 +3,10 @@ use std::path::PathBuf;
 use iced::{
     border::rounded,
     widget::{self, button, column, container, pick_list, row, text, text_input},
-    Alignment, Element, Length, Theme,
+    Alignment, Element, Length, Task, Theme,
 };
+
+use crate::file_utils::browse_directory;
 
 pub struct State {
     file_name: String,
@@ -14,6 +16,7 @@ pub struct State {
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    Browse,
     ChangeFileName(String),
     ChangeFileType(&'static str),
     ChangeDirectory(PathBuf),
@@ -28,12 +31,14 @@ impl State {
         }
     }
 
-    pub fn update(&mut self, message: Message) {
+    pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
+            Message::Browse => return Task::perform(browse_directory(), Message::ChangeDirectory),
             Message::ChangeFileName(n) => self.file_name = n,
             Message::ChangeFileType(t) => self.file_type = Some(t),
             Message::ChangeDirectory(d) => self.directory = Some(d),
         }
+        Task::none()
     }
 
     pub fn view(&self) -> Element<'_, Message> {
@@ -53,7 +58,7 @@ impl State {
                             .and_then(|d| d.to_str())
                             .unwrap_or_default()
                     ),
-                    button("Browse")
+                    button("Browse").on_press(Message::Browse)
                 ]
                 .spacing(10),
                 button(

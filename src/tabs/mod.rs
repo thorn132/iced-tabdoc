@@ -5,7 +5,7 @@ use iced::{
         self, button, column, row,
         scrollable::{Direction, Scrollbar},
     },
-    Alignment, Element, Length,
+    Alignment, Element, Length, Task,
 };
 
 use crate::config::Config;
@@ -115,7 +115,7 @@ impl Tabs {
         old_tabs.into_values().collect()
     }
 
-    pub fn update(&mut self, config: &mut Config, message: Message) {
+    pub fn update(&mut self, config: &mut Config, message: Message) -> Task<Message> {
         match message {
             Message::Home(key, msg) => {
                 if let Some(Tab::Home) = self.tabs.get(&key) {
@@ -124,7 +124,7 @@ impl Tabs {
             }
             Message::Create(key, msg) => {
                 if let Some(Tab::Create(tab)) = self.tabs.get_mut(&key) {
-                    tab.update(msg);
+                    return tab.update(msg).map(move |msg| Message::Create(key, msg));
                 }
             }
             Message::SwitchTo(key) => self.switch_to(key),
@@ -132,6 +132,7 @@ impl Tabs {
                 self.close(key);
             }
         }
+        Task::none()
     }
 
     fn tab_bar(&self) -> Element<'_, Message> {

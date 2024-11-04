@@ -5,6 +5,7 @@ use iced::{
 };
 
 mod config;
+mod file_utils;
 mod tabs;
 mod toolbar;
 
@@ -52,7 +53,7 @@ impl App {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::Tab(msg) => self.tabs.update(&mut self.config, msg),
+            Message::Tab(msg) => return self.tabs.update(&mut self.config, msg).map(Message::Tab),
             Message::Toolbar(msg) => toolbar::update(&mut self.tabs, msg),
             Message::Quit => {
                 self.config.save();
