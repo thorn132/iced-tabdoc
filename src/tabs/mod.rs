@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, mem};
+use std::{collections::BTreeMap, mem, path::PathBuf};
 
 use iced::{
     widget::{
@@ -8,7 +8,10 @@ use iced::{
     Alignment, Element, Length, Task,
 };
 
-use crate::config::Config;
+use crate::{
+    config::Config,
+    documents::{self, Documents},
+};
 
 mod create;
 mod home;
@@ -16,6 +19,7 @@ mod home;
 pub enum Tab {
     Home,
     Create(create::State),
+    Document(PathBuf),
 }
 
 impl Tab {
@@ -23,6 +27,10 @@ impl Tab {
         match self {
             Tab::Home => "Home",
             Tab::Create(_) => "New",
+            Tab::Document(path) => path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default(),
         }
     }
 }
@@ -31,6 +39,7 @@ impl Tab {
 pub enum Message {
     Home(usize, home::Message),
     Create(usize, create::Message),
+    Document(usize, documents::Message),
     SwitchTo(usize),
     Close(usize),
 }
@@ -115,7 +124,12 @@ impl Tabs {
         old_tabs.into_values().collect()
     }
 
-    pub fn update(&mut self, config: &mut Config, message: Message) -> Task<Message> {
+    pub fn update(
+        &mut self,
+        config: &mut Config,
+        documents: &mut Documents,
+        message: Message,
+    ) -> Task<Message> {
         match message {
             Message::Home(key, msg) => {
                 if let Some(Tab::Home) = self.tabs.get(&key) {
@@ -125,6 +139,13 @@ impl Tabs {
             Message::Create(key, msg) => {
                 if let Some(Tab::Create(tab)) = self.tabs.get_mut(&key) {
                     return tab.update(msg).map(move |msg| Message::Create(key, msg));
+                }
+            }
+            Message::Document(key, msg) => {
+                if let Some(Tab::Document(path)) = self.tabs.get_mut(&key) {
+                    if let Some(doc) = documents.get_mut(path) {
+                        doc.update(msg);
+                    }
                 }
             }
             Message::SwitchTo(key) => self.switch_to(key),
@@ -162,13 +183,22 @@ impl Tabs {
         .into()
     }
 
-    pub fn view<'a>(&'a self, config: &'a Config) -> Element<'a, Message> {
+    pub fn view<'a>(
+        &'a self,
+        config: &'a Config,
+        documents: &'a Documents,
+    ) -> Element<'a, Message> {
         let tab_bar = self.tab_bar();
 
         let current_tab = if let Some((key, tab)) = self.current() {
             match tab {
                 Tab::Home => home::view(config).map(move |msg| Message::Home(key, msg)),
                 Tab::Create(tab) => tab.view().map(move |msg| Message::Create(key, msg)),
+                Tab::Document(path) => documents
+                    .get(path)
+                    .unwrap()
+                    .view()
+                    .map(move |msg| Message::Document(key, msg)),
             }
         } else {
             "No Open Tabs".into()
@@ -190,4 +220,8 @@ pub fn new_home_tab() -> Tab {
 
 pub fn new_create_tab() -> Tab {
     Tab::Create(create::State::new())
+}
+
+pub fn new_document_tab(path: PathBuf) -> Tab {
+    Tab::Document(path)
 }
